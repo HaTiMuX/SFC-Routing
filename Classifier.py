@@ -4,6 +4,7 @@
 import nfqueue, socket
 from scapy.all import *
 import os
+<<<<<<< HEAD
 os.system('iptables -A PREROUTING -j NFQUEUE --queue-num 0')
 
 
@@ -21,10 +22,14 @@ def conversion(N):
 
 	return b
 
+=======
+os.system('iptables -A OUTPUT -j NFQUEUE --queue-num 0')
+>>>>>>> 85dd5e78a042515bef00c2b20e8f220e18e52afb
 
 def cb(payload):
 	data = payload.get_data()
 	p = IP(data)
+<<<<<<< HEAD
 	proto = p[IP].proto
 	src = p[IP].src
 	dst = p[IP].dst
@@ -95,6 +100,75 @@ def cb(payload):
 					if(src==result[1] or dst==result[2] or proto==result[3]):
 						p.tos= result[0]
 						break
+=======
+	src = p[IP].src
+
+	try: 
+		port = p[1].dport
+		try:
+			sql = "SELECT SF_MAP_INDEX FROM Rules WHERE IP='%s' and port='%d'" % (src, port)
+			cursor.execute(sql)
+			result = cursor.fetchone()
+			if result is not None:
+				p.tos = result[0]
+				del p[IP].chksum
+				payload.set_verdict_modified(nfqueue.NF_ACCEPT, str(p), len(p))
+
+			else:
+				try:
+					sql = "SELECT SF_MAP_INDEX FROM Rules WHERE IP is NULL and port='%d'" % (port)
+					cursor.execute(sql)
+					result = cursor.fetchone()
+
+					if result is not None:
+						p.tos = result[0]
+						del p[IP].chksum
+						payload.set_verdict_modified(nfqueue.NF_ACCEPT, str(p), len(p))
+
+					else:
+						try:
+							sql = "SELECT SF_MAP_INDEX FROM Rules WHERE IP='%s' and port is NULL" % (src)
+							cursor.execute(sql)
+							result = cursor.fetchone()
+
+							if result is not None:
+								p.tos = result[0]
+								del p[IP].chksum
+							payload.set_verdict_modified(nfqueue.NF_ACCEPT, str(p), len(p))
+
+							else:
+								print("Packet Accepted: logical routing")
+								payload.set_verdict(nfqueue.NF_ACCEPT)
+
+						except:
+							print "Error looking for mark (by IP)"
+
+				except:
+					print "Error looking for mark (by port)"
+
+		except:
+			print "Error looking for mark (by IP and port)"
+
+	except:
+		print "Protocol does not support destination port field"
+		sql = "SELECT SF_MAP_INDEX FROM Rules WHERE IP='%s' and port is NULL" % (src)
+
+		try: 
+			cursor.execute(sql)
+			result = cursor.fetchone()
+
+			if result is not None:
+				p.tos = result[0]
+				del p[IP].chksum
+				payload.set_verdict_modified(nfqueue.NF_ACCEPT, str(p), len(p))
+
+			else: 
+				print("Packet Accepted: logical routing")
+				payload.set_verdict(nfqueue.NF_ACCEPT)
+
+		except:
+			print "Error looking for mark (by IP)"
+>>>>>>> 85dd5e78a042515bef00c2b20e8f220e18e52afb
 
 q = nfqueue.queue()
 q.open()
